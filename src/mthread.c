@@ -1,0 +1,178 @@
+#include "../include/mthread.h"
+
+//Globals
+
+ucontext_t* allocation_context;
+ThreadList* READY;
+ThreadList* BLOCKED;
+TCB* EXEC;
+TCB* MAIN;
+int initialized = 0;
+
+
+void escalonador()
+{
+	EXEC = removeFirst(&READY);
+	if(EXEC != NULL)
+	{
+		EXEC->state = st_RUNNING;
+		setcontext(EXEC->context);
+	}
+}
+
+//Beginning point of function called when thread ends.
+void EndPoint()
+{
+
+	if(EXEC->waiting_for_me != NULL)
+	{
+		EXEC->waiting_for_me->state = st_READY;
+		removeList(&BLOCKED, EXEC->waiting_for_me->tid);
+		insertList(&READY, EXEC->waiting_for_me);
+	}
+	free(EXEC);
+	escalonador();
+}
+
+/* Context initializer
+*/
+ucontext_t* allocator_init()
+{
+	allocation_context = (ucontext_t*)malloc(sizeof(ucontext_t));
+
+	if (allocation_context == NULL)
+		return NULL;
+
+	getcontext(allocation_context);	// Criando o contexto de saída das threads
+		allocation_context->uc_stack.ss_sp = mmap(NULL,STACKSIZE,PROT_WRITE|PROT_READ,MAP_PRIVATE|MAP_GROWSDOWN|MAP_ANONYMOUS,-1,0);
+		allocation_context->uc_stack.ss_size = STACKSIZE;
+		allocation_context->uc_link = NULL;
+		makecontext(allocation_context, (void (*)(void))EndPoint, 0);
+	return allocation_context;
+}
+
+/* Creates a new tcb object, incrementing the tid
+		ucontext_t* context = the context that will be executed in the thread
+*/
+TCB* create_tcb(ucontext_t* context)
+{
+	TCB *newThread = (TCB*)malloc(sizeof(TCB));
+	if(newThread != NULL)
+	{
+		newThread->tid = get_tid();
+		newThread->context = context;
+		newThread->state = st_READY;
+		newThread->waiting_for_me = NULL;
+		add_tid();
+	}
+	return newThread;
+}
+
+/*PUBLIC*/
+
+int init()
+{
+	int retorno = OK;
+	ucontext_t* mainContext = (ucontext_t*)malloc(sizeof(ucontext_t));
+
+	set_tid(0);
+	if (allocator_init() == NULL)
+		retorno = ERROR;
+
+	if (retorno == OK)
+	{
+		EXEC = NULL;
+		READY = createList();
+		BLOCKED = createList();
+
+		getcontext(mainContext);
+
+		EXEC = create_tcb(mainContext);
+		if(EXEC != NULL)
+			EXEC->state = st_RUNNING;
+		else
+			retorno = ERROR;
+	}
+	return retorno;
+}
+
+int mcreate(void (*start_routine)(void*), void * arg)
+{
+	if(!initialized)
+	{
+		init();
+		initialized = 1;
+	}
+
+	int retVal = OK;
+	TCB* newThread;
+
+	//Aloca contexto
+	ucontext_t* thread_context = (ucontext_t*)malloc(sizeof(ucontext_t));
+
+	if(thread_context == NULL)
+		retVal = ERROR; //Erro no malloc
+	else
+	{
+		//Cria thread
+		getcontext(thread_context);
+		thread_context->uc_stack.ss_sp = mmap(NULL,STACKSIZE,PROT_WRITE|PROT_READ,MAP_PRIVATE|MAP_GROWSDOWN|MAP_ANONYMOUS,-1,0);
+		thread_context->uc_stack.ss_size =STACKSIZE;
+		thread_context->uc_link = allocation_context;
+		makecontext(thread_context, (void (*)(void))start_routine, 1, arg);
+
+		newThread = create_tcb(thread_context);
+
+		if(newThread == NULL)
+			retVal = ERROR;
+		else
+		{
+			retVal = newThread->tid;
+			insertList(&READY,newThread);
+		}
+	}
+	if(retVal == ERROR)
+	{
+		//Ferrou
+		free(thread_context);
+		free(newThread);
+	}
+	return retVal;
+}
+
+int myield(void)
+{
+	insertList(&READY,EXEC);
+
+	EXEC->state = st_READY;
+
+	getcontext(EXEC->context);
+	if(EXEC->state == st_RUNNING)
+		return OK;
+
+	escalonador();
+
+	return OK;
+}
+
+int mjoin(int thr)
+{
+	TCB* threadToWait = getTCBById(READY, thr);
+
+	if (threadToWait == NULL)
+		threadToWait = getTCBById(BLOCKED, thr);
+
+	if (threadToWait == NULL)
+		return ERROR;
+
+	if (threadToWait->waiting_for_me == NULL)
+	{
+		threadToWait->waiting_for_me = EXEC;
+		EXEC->state = st_BLOCKED;
+		insertList(&BLOCKED,EXEC);
+		escalonador();
+		return OK;
+	}
+	else return ERROR;
+
+}
