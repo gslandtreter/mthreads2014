@@ -204,5 +204,70 @@ int mjoin(int thr)
 		return OK;
 	}
 	else return ERROR;
+}
 
+int mmutex_init(mmutex_t *newMutex)
+{
+    if(newMutex == NULL)
+        newMutex = (mmutex_t*) malloc(sizeof(mmutex_t));
+
+    if(newMutex == NULL)
+        return ERROR;
+
+    newMutex->status = STATUS_FREE;
+    newMutex->runningThread = NULL;
+    newMutex->blockedList = createList();
+
+    return OK;
+}
+
+int my_mlock (mmutex_t *mutex)
+{
+    if(mutex == NULL)
+        return ERROR;
+
+    if(mutex->status == STATUS_FREE) //OK, update critical section.
+    {
+        mutex->runningThread = EXEC;
+        mutex->status = STATUS_LOCKED;
+        return OK;
+    }
+    else //another thread is running
+    {
+        if(mutex->runningThread->tid == EXEC->tid) //Duplicate call
+            return ERROR;
+
+        calculateTime(EXEC);
+		EXEC->state = st_BLOCKED;
+		insertList(&BLOCKED,EXEC);
+		insertList(&mutex->blockedList, EXEC);
+
+		escalonador();
+    }
+}
+
+int my_munlock (mmutex_t *mutex)
+{
+    if(mutex == NULL || mutex->status == STATUS_FREE || mutex->runningThread->tid != EXEC->tid)
+        return ERROR;
+
+    if(mutex->blockedList != NULL)
+    {
+        TCB *TCBToRemove;
+        do
+        {
+            TCBToRemove = removeFirst(&mutex->blockedList);
+            if(TCBToRemove != NULL)
+            {
+                TCBToRemove->state = st_READY;
+                removeList(&BLOCKED, TCBToRemove->tid);
+                insertList(&READY, TCBToRemove);
+            }
+        } while(mutex->blockedList != NULL);
+    }
+
+    mutex->runningThread = NULL;
+    mutex->status = STATUS_FREE;
+
+    return OK;
 }

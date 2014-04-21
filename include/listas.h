@@ -10,14 +10,6 @@
 
 #include "mdata.h"
 
-typedef struct typeTCBList ThreadList;
-
-struct typeTCBList
-{
-	TCB* thTCB;
-	ThreadList* proximo;
-};
-
 /*Create a new list
 	return: pointer to the first element of the list
 */

@@ -26,8 +26,6 @@
 #include "tid.h"
 #include "time.h"
 
-#define BILLION 1E9
-
 int mcreate (void (*start_routine)(void*), void *arg);
 int myield(void);
 int mjoin(int);
