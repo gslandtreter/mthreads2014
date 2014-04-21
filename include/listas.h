@@ -31,7 +31,9 @@ ThreadList* createList(void);
 int showList(ThreadList *threadList);
 
 
-/*Inserts an element at the end of the list
+/*Inserts an element at the list, ordering it by executionTime,
+    This way, always the shortest job is selected to execute.
+
 	ItemList *threadList: pointer to the first element of the list
 	TCB *aThread: TCB of the element to be inserted
 	return: size of the list if successful, 0 if not

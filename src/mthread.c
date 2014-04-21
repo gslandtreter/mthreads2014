@@ -9,12 +9,35 @@ TCB* EXEC;
 TCB* MAIN;
 int initialized = 0;
 
+int calculateTime(TCB *threadItem)
+{
+    if(threadItem == NULL)
+        return ERROR;
+
+    struct timespec clock;
+    clock_gettime(CLOCK_REALTIME, &clock);
+    long elapsedTime = clock.tv_nsec - threadItem->baseClock.tv_nsec;
+    threadItem->executionTime = elapsedTime;
+
+    return OK;
+}
+
+int resetClock(TCB *threadItem)
+{
+    if(threadItem == NULL)
+        return ERROR;
+
+    clock_gettime(CLOCK_REALTIME, &threadItem->baseClock);
+    return OK;
+}
 
 void escalonador()
 {
 	EXEC = removeFirst(&READY);
+
 	if(EXEC != NULL)
 	{
+        resetClock(EXEC);
 		EXEC->state = st_RUNNING;
 		setcontext(EXEC->context);
 	}
@@ -23,7 +46,6 @@ void escalonador()
 //Beginning point of function called when thread ends.
 void EndPoint()
 {
-
 	if(EXEC->waiting_for_me != NULL)
 	{
 		EXEC->waiting_for_me->state = st_READY;
@@ -36,6 +58,7 @@ void EndPoint()
 
 /* Context initializer
 */
+
 ucontext_t* allocator_init()
 {
 	allocation_context = (ucontext_t*)malloc(sizeof(ucontext_t));
@@ -63,6 +86,8 @@ TCB* create_tcb(ucontext_t* context)
 		newThread->context = context;
 		newThread->state = st_READY;
 		newThread->waiting_for_me = NULL;
+		newThread->executionTime = 0;
+		resetClock(newThread);
 		add_tid();
 	}
 	return newThread;
@@ -142,6 +167,7 @@ int mcreate(void (*start_routine)(void*), void * arg)
 
 int myield(void)
 {
+    calculateTime(EXEC);
 	insertList(&READY,EXEC);
 
 	EXEC->state = st_READY;
@@ -157,17 +183,21 @@ int myield(void)
 
 int mjoin(int thr)
 {
+    //Procura thread na lista de aptos
 	TCB* threadToWait = getTCBById(READY, thr);
 
+    //Procura thread na lista de bloqueadas
 	if (threadToWait == NULL)
 		threadToWait = getTCBById(BLOCKED, thr);
 
+    //Nao encontrou thread
 	if (threadToWait == NULL)
 		return ERROR;
 
 	if (threadToWait->waiting_for_me == NULL)
 	{
 		threadToWait->waiting_for_me = EXEC;
+		calculateTime(EXEC);
 		EXEC->state = st_BLOCKED;
 		insertList(&BLOCKED,EXEC);
 		escalonador();

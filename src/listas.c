@@ -13,21 +13,23 @@ int showList(ThreadList *threadList)
 {
     int length = 0;
     ThreadList *ptaux = threadList; //ponteiro auxiliar para percorrer a lista
-    //printf("ptaux: %d\n", ptaux);
 
     if (ptaux == NULL)
-    {
-        return length;
-    }
+        return 0;
+
+
     else
     {
+    printf("Lista, elementos: ");
         length++;
-        while (ptaux->proximo != NULL)      	//procura o fim da lista
+        while (ptaux != NULL)      	//procura o fim da lista
         {
+            printf("%d ", ptaux->thTCB->tid);
              ptaux = ptaux->proximo;
              length++;
         }
     }
+    printf("\n");
     return length;
 }
 
@@ -42,20 +44,28 @@ int insertList(ThreadList **threadList, TCB *aThread)
 	novo->proximo = NULL;
 
 	if (*threadList == NULL)
-	{
 		*threadList = novo;
-	}
     else
 	{
-        ThreadList *ptaux;
-        ptaux = *threadList; //ponteiro auxiliar para percorrer a lista
+        ThreadList *ptAux;
+        ptAux = *threadList; //ponteiro auxiliar para percorrer a lista
 
-		while (ptaux->proximo != NULL)      	//procura o fim da lista
+        if (aThread->executionTime < ptAux->thTCB->executionTime)
+        {
+            novo->proximo = ptAux;
+            *threadList = novo;
+            return length;
+        }
+
+        //Operador de comparacao eh maior ou igual para garantir FIFO
+		while (ptAux->proximo != NULL && ptAux->proximo->thTCB->tid != 0 && aThread->executionTime >= ptAux->proximo->thTCB->executionTime)      	//procura o fim da lista
 		{
-			ptaux = ptaux->proximo;
+			ptAux = ptAux->proximo;
 			length++;
  		}
-		ptaux->proximo = novo;
+
+ 		novo->proximo = ptAux->proximo;
+		ptAux->proximo = novo;
 	}
 	return length;
 }
