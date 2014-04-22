@@ -58,7 +58,7 @@ int insertList(ThreadList **threadList, TCB *aThread)
         }
 
         //Operador de comparacao eh maior ou igual para garantir FIFO
-		while (ptAux->proximo != NULL && ptAux->proximo->thTCB->tid != 0 && aThread->executionTime >= ptAux->proximo->thTCB->executionTime)      	//procura o fim da lista
+		while (ptAux->proximo != NULL /* && ptAux->proximo->thTCB->tid != 0 */ && aThread->executionTime >= ptAux->proximo->thTCB->executionTime)      	//procura o fim da lista
 		{
 			ptAux = ptAux->proximo;
 			length++;
