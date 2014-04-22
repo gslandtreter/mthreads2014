@@ -22,9 +22,9 @@
 /*TYPES*/
 typedef enum
 {
-	st_READY,
-	st_RUNNING,
-	st_BLOCKED
+	STATE_READY,
+	STATE_RUNNING,
+	STATE_BLOCKED
 } State;
 
 typedef struct st_TCB TCB;

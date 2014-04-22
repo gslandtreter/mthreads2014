@@ -20,7 +20,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/mman.h>
 #include <ucontext.h>
 #include "listas.h"
 #include "tid.h"
@@ -30,7 +29,7 @@ int mcreate (void (*start_routine)(void*), void *arg);
 int myield(void);
 int mjoin(int);
 int mmutex_init(mmutex_t *);
-int my_mlock (mmutex_t *);
-int my_munlock (mmutex_t *);
+int mlock (mmutex_t *);
+int munlock (mmutex_t *);
 
 #endif

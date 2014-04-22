@@ -38,7 +38,7 @@ void escalonador()
 	if(EXEC != NULL)
 	{
         resetClock(EXEC);
-		EXEC->state = st_RUNNING;
+		EXEC->state = STATE_RUNNING;
 		setcontext(EXEC->context);
 	}
 }
@@ -48,7 +48,7 @@ void EndPoint()
 {
 	if(EXEC->waiting_for_me != NULL)
 	{
-		EXEC->waiting_for_me->state = st_READY;
+		EXEC->waiting_for_me->state = STATE_READY;
 		removeList(&BLOCKED, EXEC->waiting_for_me->tid);
 		insertList(&READY, EXEC->waiting_for_me);
 	}
@@ -67,10 +67,10 @@ ucontext_t* allocator_init()
 		return NULL;
 
 	getcontext(allocation_context);	// Criando o contexto de saída das threads
-		allocation_context->uc_stack.ss_sp = mmap(NULL,STACKSIZE,PROT_WRITE|PROT_READ,MAP_PRIVATE|MAP_GROWSDOWN|MAP_ANONYMOUS,-1,0);
-		allocation_context->uc_stack.ss_size = STACKSIZE;
-		allocation_context->uc_link = NULL;
-		makecontext(allocation_context, (void (*)(void))EndPoint, 0);
+    allocation_context->uc_stack.ss_sp = (char*) malloc(STACKSIZE);
+    allocation_context->uc_stack.ss_size = STACKSIZE;
+    allocation_context->uc_link = NULL;
+    makecontext(allocation_context, (void (*)(void))EndPoint, 0);
 	return allocation_context;
 }
 
@@ -84,7 +84,7 @@ TCB* create_tcb(ucontext_t* context)
 	{
 		newThread->tid = get_tid();
 		newThread->context = context;
-		newThread->state = st_READY;
+		newThread->state = STATE_READY;
 		newThread->waiting_for_me = NULL;
 		newThread->executionTime = 0;
 		resetClock(newThread);
@@ -101,6 +101,7 @@ int init()
 	ucontext_t* mainContext = (ucontext_t*)malloc(sizeof(ucontext_t));
 
 	set_tid(0);
+
 	if (allocator_init() == NULL)
 		retorno = ERROR;
 
@@ -114,7 +115,7 @@ int init()
 
 		EXEC = create_tcb(mainContext);
 		if(EXEC != NULL)
-			EXEC->state = st_RUNNING;
+			EXEC->state = STATE_RUNNING;
 		else
 			retorno = ERROR;
 	}
@@ -141,8 +142,8 @@ int mcreate(void (*start_routine)(void*), void * arg)
 	{
 		//Cria thread
 		getcontext(thread_context);
-		thread_context->uc_stack.ss_sp = mmap(NULL,STACKSIZE,PROT_WRITE|PROT_READ,MAP_PRIVATE|MAP_GROWSDOWN|MAP_ANONYMOUS,-1,0);
-		thread_context->uc_stack.ss_size =STACKSIZE;
+		thread_context->uc_stack.ss_sp = (char*) malloc(STACKSIZE);
+		thread_context->uc_stack.ss_size = STACKSIZE;
 		thread_context->uc_link = allocation_context;
 		makecontext(thread_context, (void (*)(void))start_routine, 1, arg);
 
@@ -170,10 +171,10 @@ int myield(void)
     calculateTime(EXEC);
 	insertList(&READY,EXEC);
 
-	EXEC->state = st_READY;
+	EXEC->state = STATE_READY;
 
 	getcontext(EXEC->context);
-	if(EXEC->state == st_RUNNING)
+	if(EXEC->state == STATE_RUNNING)
 		return OK;
 
 	escalonador();
@@ -181,14 +182,14 @@ int myield(void)
 	return OK;
 }
 
-int mjoin(int thr)
+int mjoin(int threadID)
 {
     //Procura thread na lista de aptos
-	TCB* threadToWait = getTCBById(READY, thr);
+	TCB* threadToWait = getTCBById(READY, threadID);
 
     //Procura thread na lista de bloqueadas
 	if (threadToWait == NULL)
-		threadToWait = getTCBById(BLOCKED, thr);
+		threadToWait = getTCBById(BLOCKED, threadID);
 
     //Nao encontrou thread
 	if (threadToWait == NULL)
@@ -198,9 +199,13 @@ int mjoin(int thr)
 	{
 		threadToWait->waiting_for_me = EXEC;
 		calculateTime(EXEC);
-		EXEC->state = st_BLOCKED;
+		EXEC->state = STATE_BLOCKED;
 		insertList(&BLOCKED,EXEC);
-		escalonador();
+		getcontext(EXEC->context);
+
+		if(EXEC->state == STATE_BLOCKED)
+            escalonador();
+
 		return OK;
 	}
 	else return ERROR;
@@ -208,6 +213,7 @@ int mjoin(int thr)
 
 int mmutex_init(mmutex_t *newMutex)
 {
+    //Aloca mutex, se nao existir.
     if(newMutex == NULL)
         newMutex = (mmutex_t*) malloc(sizeof(mmutex_t));
 
@@ -218,15 +224,16 @@ int mmutex_init(mmutex_t *newMutex)
     newMutex->runningThread = NULL;
     newMutex->blockedList = createList();
 
+    myield(); //Aproveitando para escalonar alguem ;D
     return OK;
 }
 
-int my_mlock (mmutex_t *mutex)
+int mlock (mmutex_t *mutex)
 {
     if(mutex == NULL)
         return ERROR;
 
-    if(mutex->status == STATUS_FREE) //OK, update critical section.
+    if(mutex->status == STATUS_FREE) //OK, bloquear mutex
     {
         mutex->runningThread = EXEC;
         mutex->status = STATUS_LOCKED;
@@ -237,20 +244,23 @@ int my_mlock (mmutex_t *mutex)
         if(mutex->runningThread->tid == EXEC->tid) //Duplicate call
             return ERROR;
 
-        calculateTime(EXEC);
-		EXEC->state = st_BLOCKED;
+        calculateTime(EXEC); //Bloqueia thread
+		EXEC->state = STATE_BLOCKED;
 		insertList(&BLOCKED,EXEC);
 		insertList(&mutex->blockedList, EXEC);
+        getcontext(EXEC->context);
 
-		escalonador();
+        if(EXEC->state == STATE_BLOCKED)
+            escalonador();
     }
 }
 
-int my_munlock (mmutex_t *mutex)
+int munlock (mmutex_t *mutex)
 {
     if(mutex == NULL || mutex->status == STATUS_FREE || mutex->runningThread->tid != EXEC->tid)
         return ERROR;
 
+    //Desbloqueia threads bloqueadas
     if(mutex->blockedList != NULL)
     {
         TCB *TCBToRemove;
@@ -259,15 +269,17 @@ int my_munlock (mmutex_t *mutex)
             TCBToRemove = removeFirst(&mutex->blockedList);
             if(TCBToRemove != NULL)
             {
-                TCBToRemove->state = st_READY;
+                TCBToRemove->state = STATE_READY;
                 removeList(&BLOCKED, TCBToRemove->tid);
                 insertList(&READY, TCBToRemove);
             }
         } while(mutex->blockedList != NULL);
     }
 
+    //Atualiza mutex
     mutex->runningThread = NULL;
     mutex->status = STATUS_FREE;
 
+    myield(); //Aproveitando para escalonar alguem ;D
     return OK;
 }
