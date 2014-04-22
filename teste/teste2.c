@@ -6,6 +6,8 @@
 
 #include "./include/mthread.h" /*considera que este fonte está no diretório "testes" (vide seção 8)*/
 
+mmutex_t mutex = { STATUS_FREE, NULL, NULL };
+
 void func0(void *arg) {
 
      /*corpo da função func0 */
@@ -48,6 +50,5 @@ int main(int argc, char *argv[]) {
 	printf("Create retornou %d %d\n",id0, id1);
     mjoin(id1);
 	printf("Create retornou %d %d\n",id0, id1);
-	myield();
 	printf("Main :D\n");
 }
