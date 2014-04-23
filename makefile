@@ -5,7 +5,7 @@ tid.o: src/tid.c
 	gcc -o bin/tid.o -c src/tid.c
 
 mthread.o: src/mthread.c
-	gcc -ltr -o bin/mthread.o -c src/mthread.c
+	gcc -lrt -o bin/mthread.o -c src/mthread.c
 
 listas.o: src/listas.c
 	gcc -o bin/listas.o -c src/listas.c
