@@ -1,14 +1,11 @@
-all: tid.o listas.o mthread.o
-	ar crs lib/libmthread.a bin/mthread.o bin/listas.o bin/tid.o
-
-tid.o: src/tid.c
-	gcc -o bin/tid.o -c src/tid.c
+all: mdata.o mthread.o
+	ar crs lib/libmthread.a bin/mthread.o bin/mdata.o
 
 mthread.o: src/mthread.c
 	gcc -lrt -o bin/mthread.o -c src/mthread.c
 
-listas.o: src/listas.c
-	gcc -o bin/listas.o -c src/listas.c
+mdata.o: src/mdata.c
+	gcc -o bin/mdata.o -c src/mdata.c
 
 clean:
 	rm  lib/*.a bin/*.o

@@ -10,8 +10,8 @@
 
 #include <ucontext.h>
 #include "time.h"
+#include <stdlib.h>
 
-/*DEFINES*/
 #define BILLION 1E9
 #define STACKSIZE 10485760 //Stacksize for contexts
 #define OK 0				//Ok return of the functions
@@ -19,7 +19,7 @@
 #define STATUS_FREE 0
 #define STATUS_LOCKED 1
 
-/*TYPES*/
+//Mutex State
 typedef enum
 {
 	STATE_READY,
@@ -27,34 +27,66 @@ typedef enum
 	STATE_BLOCKED
 } State;
 
-typedef struct st_TCB TCB;
-struct st_TCB
+//Thread Control Block
+typedef struct structTCB TCB;
+struct structTCB
 {
 	int tid;
-	ucontext_t* context;
 	State state;
-	TCB *waiting_for_me;
+	ucontext_t* context;
+	TCB* jointThread;
 	struct timespec baseClock;
 	long executionTime;
 };
 
-typedef struct typeTCBList ThreadList;
-
-struct typeTCBList
+//Thread List
+typedef struct TCBList ThreadList;
+struct TCBList
 {
 	TCB* thTCB;
 	ThreadList* proximo;
 };
 
-/*
- * Exemplo de estrutura de dados "mutex"
- * Os grupos devem alterar essa estrutura de acordo com sua necessidade
-
-*/
+//Mutex
 typedef struct mutex {
 	int status;
     TCB *runningThread;
     ThreadList *blockedList;
 } mmutex_t;
+
+
+
+/***** FUNCTIONS *****/
+
+//Creates new list.
+ThreadList* createList(void);
+
+//Prints list elements.
+int showList(ThreadList *threadList);
+
+//Inserts an element at the list, ordering it by executionTime,
+//This way, always the shortest job is scheduled.
+int insertList(ThreadList **threadList, TCB *aThread);
+
+//Gets thread by ID
+TCB* getTCBById(ThreadList *threadList, int tid);
+
+//Removes thread from a list by ID
+TCB* removeList(ThreadList **threadList, int tid);
+
+//Removes the first element of a list
+TCB* removeFirst(ThreadList **threadList);
+
+//Destroys a list
+ThreadList* destroy(ThreadList* threadList);
+
+// Get current TID
+int get_tid();
+
+//Set current TID
+void set_tid(int value);
+
+// TID = TID + 1
+int add_tid();
 
 #endif

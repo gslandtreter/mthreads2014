@@ -17,12 +17,9 @@
                      *         TCB *next;
                      *     } mmutex_t;
                      */
-
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <ucontext.h>
-#include "listas.h"
-#include "tid.h"
 #include "time.h"
 
 int mcreate (void (*start_routine)(void*), void *arg);
