@@ -97,29 +97,27 @@ TCB* createTCB(ucontext_t* context)
 
 int init()
 {
-	int retorno = OK;
+    set_tid(0);
+
 	ucontext_t* mainContext = (ucontext_t*)malloc(sizeof(ucontext_t));
 
-	set_tid(0);
-
 	if (allocator_init() == NULL)
-		retorno = ERROR;
+		return ERROR;
 
-	if (retorno == OK)
-	{
-		EXEC = NULL;
-		READY_LIST = createList();
-		BLOCKED_LIST = createList();
+    EXEC = NULL;
+    READY_LIST = createList();
+    BLOCKED_LIST = createList();
 
-		getcontext(mainContext);
+    getcontext(mainContext);
 
-		EXEC = createTCB(mainContext);
-		if(EXEC != NULL)
-			EXEC->state = STATE_RUNNING;
-		else
-			retorno = ERROR;
-	}
-	return retorno;
+    EXEC = createTCB(mainContext);
+
+    if(EXEC != NULL)
+        EXEC->state = STATE_RUNNING;
+    else
+        return ERROR;
+
+	return OK;
 }
 
 //Beginning of library public functions
@@ -127,7 +125,11 @@ int mcreate(void (*start_routine)(void*), void * arg)
 {
 	if(!initialized)
 	{
-		init();
+		int initRet = init();
+
+        if(initRet == ERROR)
+            return ERROR;
+
 		initialized = 1;
 	}
 

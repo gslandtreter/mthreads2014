@@ -22,8 +22,8 @@ int showList(ThreadList *threadList)
         while (ptaux != NULL)      	//procura o fim da lista
         {
             printf("%d ", ptaux->thTCB->tid);
-             ptaux = ptaux->proximo;
-             length++;
+            ptaux = ptaux->proximo;
+            length++;
         }
     }
     printf("\n");
@@ -42,6 +42,7 @@ int insertList(ThreadList **threadList, TCB *aThread)
 
 	if (*threadList == NULL)
 		*threadList = novo;
+
     else
 	{
         ThreadList *ptAux;
@@ -77,6 +78,7 @@ TCB* getTCBById(ThreadList *threadList, int tid)
 	{
 		if(ptaux->thTCB->tid == tid)
 			return ptaux->thTCB;
+
 		ptaux = ptaux->proximo;
 	}
 	return NULL;
@@ -118,10 +120,9 @@ TCB* removeFirst(ThreadList **threadList)
     ptaux = *threadList;
 
     if (*threadList == NULL)  //se nao achou
-	{
 		return NULL;
-	}
-    	else
+
+    else
 	{
 		*threadList = (*threadList)->proximo;  //Remove o primeiro elemento
 		return ptaux->thTCB;
