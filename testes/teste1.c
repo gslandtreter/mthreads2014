@@ -6,11 +6,15 @@ void func1()
 {
 	int i = 0, x = 0;
 
+	//Doing loops takes a long time
 	for (i = 0; i < 1000000; i++)
 		x = i + 2;
+
 	mmutex_init(&mutex);
 	mlock(&mutex);
+
 	myield();
+
 	printf("Thread 1\n");
 	munlock(&mutex);
 	return;
@@ -18,10 +22,8 @@ void func1()
 
 void func2()
 {
+	//Mesmo dando yield, deve voltar para thread2, pois thread1 eh mais demorada
 	myield();
-	//mlock(&mutex); //Deve bloquear a thread pq o mutex ta rodando.
-	//Ou dar segmentation fault por um motivo desconhecido
-	//Acredito por o mutex ter sido setado no contexto 1.
 	printf("Thread 2\n");
 	return;
 }
@@ -32,8 +34,9 @@ int main()
 	int b = mcreate(func2,NULL);
 
 	mjoin(a);
-	printf("Create retornou %d %d\n",a, b);
+	printf("Create - %d %d\n",a, b);
 	myield();
-	printf("Main :D\n");
+	printf("MaiThread\n");
+	mjoin(b);
 	return 0;
 }
